@@ -19,19 +19,6 @@ def copy_orig_pg_statistics(connection, cursor):
 
     print("Table pg_statistics_cpy created successfully.")
     
-    '''
-    functions to write:
-    1. getStatRows(relname)
-       output: row of pg_statistics for this key
-    
-    2. call getStatRows for list of pairs of relnames and attrnames
-        and make sql query stringing the relnames with ORs
-    
-    3. transform statistics
-        transformed = transform(copy, cols_to_change)
-        
-    4. update(transformed)
-    '''
     
 def getStatRows(connection, cursor):
     """
@@ -304,3 +291,17 @@ if __name__ == '__main__':
     # # Commit the transaction
     # connection.commit()
     # print("Table pg_statistics_noisy created successfully.")
+    
+'''
+    functions to write:
+    1. getStatRows(relname)
+       output: row of pg_statistics for this key
+    
+    2. call getStatRows for list of pairs of relnames and attrnames
+        and make sql query stringing the relnames with ORs
+    
+    3. transform statistics
+        transformed = transform(copy, cols_to_change)
+        
+    4. update(transformed)
+    '''
