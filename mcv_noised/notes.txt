@@ -1,0 +1,21 @@
+How to consider the domain for string type attributes:
+1. Try to infer the format
+________
+
+1. Try to find queries that do not have attributes with complicated domains
+2. Slightly less complex domain: ('title', 'phonetic code') : Letter followed by a number picked from a range
+- might need to check the range of numbers
+3. Need to use a sketch or sampling - in order to represent the domain (in a compact form) without the combinatorial blow-up
+
+____________
+
+4. TODOs:
+a. Need to study how to do sampling and the privacy guarantees
+b. Try to manually infer format for some of the string.
+c. Also study differentially private sketches
+d. Read Saqe (Bater et al) again
+
+
+5. Remember to count the null values and their counts as well.
+
+6. Can write it with Regex (can be used for uder-provided domain information).

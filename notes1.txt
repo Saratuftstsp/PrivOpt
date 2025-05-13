@@ -1,0 +1,209 @@
+***** Date: 11/19/2024 *****
+
+Folder exp contains results from most recent experiment.
+Folder Old_exps contains results from previous runs of the code, which might have changed since.
+
+ # Create the new table pg_statistics_noisy
+    # create_table_query = '''
+    # update pg_statistic set stanullfrac=1 
+    # where starelid=1247 and staattnum=1 and stainherit = 'f';
+    # '''
+
+Arrange functions so that the one called last is at the top.
+
+______________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+***** Date: 12/04/2024 *****
+
+How is pg_stats obtained from pg_statistic?
+ \d+ pg_stats;
+                                 View "pg_catalog.pg_stats"
+         Column         |   Type   | Collation | Nullable | Default | Storage  | Description 
+------------------------+----------+-----------+----------+---------+----------+-------------
+ schemaname             | name     |           |          |         | plain    | 
+ tablename              | name     |           |          |         | plain    | 
+ attname                | name     |           |          |         | plain    | 
+ inherited              | boolean  |           |          |         | plain    | 
+ null_frac              | real     |           |          |         | plain    | 
+ avg_width              | integer  |           |          |         | plain    | 
+ n_distinct             | real     |           |          |         | plain    | 
+ most_common_vals       | anyarray |           |          |         | extended | 
+ most_common_freqs      | real[]   |           |          |         | extended | 
+ histogram_bounds       | anyarray |           |          |         | extended | 
+ correlation            | real     |           |          |         | plain    | 
+ most_common_elems      | anyarray |           |          |         | extended | 
+ most_common_elem_freqs | real[]   |           |          |         | extended | 
+ elem_count_histogram   | real[]   |           |          |         | extended | 
+View definition:
+ SELECT n.nspname AS schemaname,
+    c.relname AS tablename,
+    a.attname,
+    s.stainherit AS inherited,
+    s.stanullfrac AS null_frac,
+    s.stawidth AS avg_width,
+    s.stadistinct AS n_distinct,
+        CASE
+            WHEN s.stakind1 = 1 THEN s.stavalues1
+            WHEN s.stakind2 = 1 THEN s.stavalues2
+            WHEN s.stakind3 = 1 THEN s.stavalues3
+            WHEN s.stakind4 = 1 THEN s.stavalues4
+            WHEN s.stakind5 = 1 THEN s.stavalues5
+            ELSE NULL::anyarray
+        END AS most_common_vals,
+        CASE
+            WHEN s.stakind1 = 1 THEN s.stanumbers1
+            WHEN s.stakind2 = 1 THEN s.stanumbers2
+            WHEN s.stakind3 = 1 THEN s.stanumbers3
+            WHEN s.stakind4 = 1 THEN s.stanumbers4
+            WHEN s.stakind5 = 1 THEN s.stanumbers5
+            ELSE NULL::real[]
+        END AS most_common_freqs,
+        CASE
+            WHEN s.stakind1 = 2 THEN s.stavalues1
+            WHEN s.stakind2 = 2 THEN s.stavalues2
+            WHEN s.stakind3 = 2 THEN s.stavalues3
+            WHEN s.stakind4 = 2 THEN s.stavalues4
+            WHEN s.stakind5 = 2 THEN s.stavalues5
+            ELSE NULL::anyarray
+        END AS histogram_bounds,
+        CASE
+            WHEN s.stakind1 = 3 THEN s.stanumbers1[1]
+            WHEN s.stakind2 = 3 THEN s.stanumbers2[1]
+            WHEN s.stakind3 = 3 THEN s.stanumbers3[1]
+            WHEN s.stakind4 = 3 THEN s.stanumbers4[1]
+            WHEN s.stakind5 = 3 THEN s.stanumbers5[1]
+            ELSE NULL::real
+        END AS correlation,
+        CASE
+            WHEN s.stakind1 = 4 THEN s.stavalues1
+            WHEN s.stakind2 = 4 THEN s.stavalues2
+            WHEN s.stakind3 = 4 THEN s.stavalues3
+            WHEN s.stakind4 = 4 THEN s.stavalues4
+            WHEN s.stakind5 = 4 THEN s.stavalues5
+            ELSE NULL::anyarray
+        END AS most_common_elems,
+        CASE
+            WHEN s.stakind1 = 4 THEN s.stanumbers1
+            WHEN s.stakind2 = 4 THEN s.stanumbers2
+            WHEN s.stakind3 = 4 THEN s.stanumbers3
+            WHEN s.stakind4 = 4 THEN s.stanumbers4
+            WHEN s.stakind5 = 4 THEN s.stanumbers5
+            ELSE NULL::real[]
+        END AS most_common_elem_freqs,
+        CASE
+            WHEN s.stakind1 = 5 THEN s.stanumbers1
+            WHEN s.stakind2 = 5 THEN s.stanumbers2
+            WHEN s.stakind3 = 5 THEN s.stanumbers3
+            WHEN s.stakind4 = 5 THEN s.stanumbers4
+            WHEN s.stakind5 = 5 THEN s.stanumbers5
+            ELSE NULL::real[]
+        END AS elem_count_histogram
+   FROM pg_statistic s
+     JOIN pg_class c ON c.oid = s.starelid
+     JOIN pg_attribute a ON c.oid = a.attrelid AND a.attnum = s.staattnum
+     LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE NOT a.attisdropped AND has_column_privilege(c.oid, a.attnum, 'select'::text) AND (c.relrowsecurity = false OR NOT row_security_active(c.oid));
+
+What do we learn from this?:
+
+If none of the stakinds is 1 then most_common_vals column appears null, and the corresponding stavalues is null real[]
+If none of the stakinds is 1 then most_common_freqs column appears null, and the corresponding stanumbers is null real[]
+If none of the stakinds is 2 then histogram_bounds column appears null, and the corresponding stanumbers is null real[]
+If none of the stakinds is 3 then correlation column appears null, and the corresponding stanumbers is null real[].
+    Also, correlation is the corresponding stanumber's index 1 when the stakind is 3, and stanumbers is just an array of one real.
+    Why is this not 0-indexed? I don't know.
+If none of the stakinds is 4 then most_common_elem_freqs column appears null, and the corresponding stanumbers is null real[]
+If none of the stakinds is 5 then elem_count_histogram column appears null, and the corresponding stanumbers is null real[].
+
+Furthermore,
+If histogram_bounds == null, elem_count_histogram histogram can't not be null right?
+This means, if none of the stakinds are 2, none of them should be 5 either.
+Similarly, if most_common_vals == null, then most_common_freqs can't not be null.
+This means, none of the stakinds are 1.
+Here's where I am confused.
+If the corresponding list of frequencies for most_common_vals, if most_common_freqs, then what is most_common_elem_freqs supposed to be?
+Lets consult the pg_stats documentation to answer this question.
+
+Here's what I have returned with from the visit to the pg_stats documentation:
+Firstly, I am right about the pairing of mcv with mcf and histogram_bounds with elem_count_histogram.
+We also know now that the former pair is null for NON-SCALAR types. I am interpreting this as anything but a number.
+Now, elem_count_histogram is defined as the following:
+A histogram of the counts of distinct non-null element values within the values of the column, 
+    followed by the average number of distinct non-null elements. (Null for scalar types.)
+Not sure how to properly interpret this, other than that this is also not for numbers I guess.
+Lastly, return with some new confusion. The documentation lists to other columns for pg_stats which
+    I was not aware of until right now.
+    They are:
+    1. range_empty_frac float4
+        Fraction of column entries whose values are empty ranges. (Null for non-range types.)
+    2. range_bounds_histogram anyarray
+        A histogram of lower and upper bounds of non-empty and non-null range values. (Null for non-range types.)
+        These two histograms are represented as a single array of ranges, whose lower bounds represent the histogram of 
+        lower bounds, and upper bounds represent the histogram of upper bounds.
+    Again, not sure what to think of these, other than that they are for  RANGE types.
+    Now, for a sanity check, lets go see if they even appear in the list of columns for pg_stats.
+    At least in the \d+ pg_stats output, they do not appear. 
+    Do I try to add noise to something that might not appear? 
+    Idrk. I am ignoring this for now.
+
+List of pg_statistic columns and their corresponding indexes for reference:
+Index 0 is starelid (public)
+Index 1 is staattnum (public)
+Index 2 is stainherit
+Index 3 is stanullfrac
+Index 4 is stawidth
+Index 5 is stadistinct
+Index 6 is stakind1
+Index 7 is stakind2
+Index 8 is stakind3
+Index 9 is stakind4
+Index 10 is stakind5
+Index 11 is staop1
+Index 12 is staop2
+Index 13 is staop3
+Index 14 is staop4
+Index 15 is staop5
+Index 16 is stacoll1
+Index 17 is stacoll2
+Index 18 is stacoll3
+Index 19 is stacoll4
+Index 20 is stacoll5
+Index 21 is stanumbers1
+Index 22 is stanumbers2
+Index 23 is stanumbers3
+Index 24 is stanumbers4
+Index 25 is stanumbers5
+Index 26 is stavalues1
+Index 27 is stavalues2
+Index 28 is stavalues3
+Index 29 is stavalues4
+Index 30 is stavalues5
+
+What I do not know right now is, what is the right values to put in stakindN if I want to make it seem like there is no statistic?
+I can look for a row where all of the stavalues are null/None, and then check the values for stakindN.
+Can probably do this with a while loop through all the public namespace rows of pg_statistic
+     and printing out the first rel_id, attnum and inherit triple, for which all the stavalues are None
+Did this. After all that work, we find that the right value is simply 0.
+
+Is only one stakind ever 1?
+
+______________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+***** Date: 12/04/2024 *****
+
+Ran the experiments for only mcv not hidden and only mcv hidden.
+
+Currently working on noising mcv by getting the true counts first ----> might want to use sampling for this idk.
+
+To get noisy counts:
+1. identify rows with 1 in one of the stakinds
+2. now, if there is a 1 in an stakind, need to go through all the values in this particular column of this particular table. How?
+ - Well, we need the name of the table and the name of the column first, only then can we get all the rows and count the freqs with a simple sql query.
+ - Need to find the name of the relation from pg_class by joining on pg_class.oid and pg_statistic.starelid
+ - Need to find the attribute name from pg_attribute by joining on pg_attribute.attnum and pg_statistic.staattnum
+ - After getting the relname and attname, now issue "select attname, count(*) c from relname group by attname" 
+ - Get the counts in a list, and also a dictionary where the count is a key and the value is a list of unique values with the key count
+ - sort list of counts and grab the unique values with the top 10 highest counts
+ - put the mcv and mcf back into pg_statistic ----> this part is going to be difficult
+    - so to begin with, what type is the stuff returned where the mcv is not null?
+    - how exactly do format this thing when inserting it into pg_statistic

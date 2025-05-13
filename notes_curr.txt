@@ -1,0 +1,52 @@
+Tuesday 04/29/2025
+Q. What is the corresponding values of staop and stacol when some stakind is 3 (meaning there is a correl)?
+Both staop and stacol have different int values that comes from postgres internals. Will consider these public.
+StavaluesN is always null if there is a correl for that stakindN.
+
+Q. Understanding DP noise addition: Am I spending some privacy budget at each draw from the Laplace distribution?
+If the data is disjoint, then the epsilon is not additive. It is not disjoint then 0.1 is divided among the different values noised.
+Question is, is our data disjoint or not? What does data being disjoint mean? How do you show whether some data is disjoint or not?
+
+Last time:
+Added noise to just null_frac, fresh noise 10 different times and took average runtime of 10 runs for each iteration or noise addition.
+Plotted the bars.
+
+Plan:
+Need to run all queries at some point, and also run them with oblivious and DP stats with timeout 2x original runtime.
+
+Today's Task:
+Find a query to enumerate plans for:
+
+- Pick 6a because the difference between obl and pub is big 
+and dp runtime frac is smaller than both obl and pub.
+
+SELECT MIN(k.keyword) AS movie_keyword, MIN(n.name) AS actor_name, 
+MIN(t.title) AS marvel_movie 
+FROM cast_info AS ci, keyword AS k, movie_keyword AS mk, name AS n, title AS t 
+WHERE k.keyword = 'marvel-cinematic-universe' AND n.name LIKE '%Downey%Robert%' 
+AND t.production_year > 2010 AND k.id = mk.keyword_id AND t.id = mk.movie_id 
+AND t.id = ci.movie_id AND ci.movie_id = mk.movie_id AND n.id = ci.person_id;
+
+___________________________________________________________________________________________________________
+
+Monday 05/12/2025
+
+Task: Organizing PrivOpt Github repository
+- Files used for experiments:
+1. erase.py 
+2. run_given_qs.py
+3. run_noisy.py
+-Files used to analysis or look into things
+1. clean_plans.py
+2. plot_bars.py
+3. print_query_names.py
+
+Makes three directories potentially:
+1. experiment code 
+2. utility code
+3. throwaway code
+
+Also push runtime Files
+Push plan files for a few interesting queries
+
+Task 2: Plan to run the rest of the queries - write bash code for this maybe
